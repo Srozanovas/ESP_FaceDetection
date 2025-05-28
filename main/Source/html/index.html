@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div id="stream-container" class="image-container" >
+        <img id="stream" crossorigin="" style="visibility: hidden;">
+    </div>
+    <div>
+        <button id = "Toggle stream">
+            Start Stream
+        </button>
+        <select class = "inputSelect" name="NeuralNetwork" id="selectNN">
+            <option value="1">TensorFlow</option>
+            <option value="2">ESP WOW</option>
+            <option value="3">Perceptron</option>
+            <option value="4">Multi</option>
+        </select>
+        
+    </div>
+    </figure>
+</body>
+
+<style>
+    body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #181818;
+    color: #EFEFEF;
+    font-size: 16px;
+    }
+</style>
+
+
+<script>
+    toggle = 0; 
+
+    document.addEventListener('DOMContentLoaded', function (event) {
+        var baseHost = document.location.origin
+        var streamUrl = baseHost + ':81'
+
+
+        el = document.getElementById("Toggle stream");
+        el.addEventListener("click", myFunction);
+
+        el = document.getElementById("selectNN"); 
+        el.addEventListener("change", UpdateConfig);
+    
+        function myFunction() {
+            const view = document.getElementById('stream')
+            el = document.getElementById("Toggle stream"); 
+            if (toggle == 0) { 
+                toggle = 1;
+                el.textContent = "Stop stream"   
+                view.src = `${streamUrl}/stream`
+                view.style.visibility = "visible"
+            } else { 
+                toggle = 0;
+                el.textContent = "Start stream" 
+                window.stop();
+                view.style.visibility = "hidden"
+            }
+        }
+    
+
+
+        function UpdateConfig(){ 
+            s = document.location.origin+"/control?var="
+            el = this; 
+            
+
+            if (el.className === "inputSelect"){ 
+                paramValue = el.value; 
+                paramName = el.name;
+            }
+
+
+            s = s + paramName + ";value=" + paramValue; 
+            fetch(s);
+        }
+        s = baseHost+"/status";
+        fetch(s)
+        .then(function (response) {
+            return response.json()
+        })
+        .then(function (state) {
+            value = state.NeuralNetwork; 
+            el = document.getElementsByName("NeuralNetwork")[0]; 
+            el.value = value;
+        })
+    })
+
+</script>
+
+
+
+
+</html>
