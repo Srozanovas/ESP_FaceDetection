@@ -10,7 +10,7 @@ void CameraTask();
 taskConfig cameraTask = {
     CameraTask,
     "Camera task",
-    1500,
+    9000,
     NULL,
     tskIDLE_PRIORITY,
 }; 
@@ -69,29 +69,18 @@ void CameraInit(){
     config.pixel_format = PIXFORMAT_JPEG;  // for streaming
     //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
     config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-    config.fb_location = CAMERA_FB_IN_DRAM;
+    config.fb_location = CAMERA_FB_IN_PSRAM;
     config.jpeg_quality = 12;
     config.fb_count = 1;
 
-
+    ESP_ERROR_CHECK(esp_camera_init(&config));
+    
+    sensor_t *s = esp_camera_sensor_get();
+    
+    // // drop down frame size for higher initial frame rate
     if (config.pixel_format == PIXFORMAT_JPEG) {
-        config.jpeg_quality = 10;
-        config.fb_count = 2;
-        config.frame_size = FRAMESIZE_SVGA;
-        config.fb_location = CAMERA_FB_IN_DRAM;
-    } else {
-        config.frame_size = FRAMESIZE_240X240;
-        config.fb_count = 2;
+        s->set_framesize(s, mainConfig.res[1]);
     }
-
-    //ESP_ERROR_CHECK(esp_camera_init(&config));
-    
-    //sensor_t *s = esp_camera_sensor_get();
-    
-    // drop down frame size for higher initial frame rate
-    //if (config.pixel_format == PIXFORMAT_JPEG) {
-    //    s->set_framesize(s, FRAMESIZE_QVGA);
-    //}
 
     
 
@@ -113,19 +102,25 @@ void CameraInit(){
 void CameraTask(){ 
 
     camera_fb_t *fb = NULL;
-    esp_err_t res = ESP_OK;
-    char *part_buf[128];
+    sensor_t *s = esp_camera_sensor_get();
+    vTaskDelay(5000/portTICK_PERIOD_MS);
+
     while(1) { 
         
-        if (FSM == eFSMCameraGet){ 
+        if (FSM == eFSMImageGet){ 
+            
+
+            if (mainConfig.res[1] != mainConfig.res[0]){ 
+                mainConfig.res[0] = mainConfig.res[1];
+                s->set_framesize(s, mainConfig.res[1]);
+            }
+
+
             if (fb) {
                 esp_camera_fb_return(fb);
                 fb = NULL;
                 _jpg_buf = NULL;
-            } else if (_jpg_buf) {
-                free(_jpg_buf);
-                _jpg_buf = NULL;
-            }
+            } 
 
 
             fb = esp_camera_fb_get();

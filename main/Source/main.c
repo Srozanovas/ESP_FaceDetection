@@ -15,7 +15,8 @@
 
 systemConfig mainConfig = { 
     eTensorFlow, 
-    0
+    0,
+    {FRAMESIZE_240X240, FRAMESIZE_240X240}
 };
 
 

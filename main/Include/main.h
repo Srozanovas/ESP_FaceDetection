@@ -16,7 +16,6 @@ typedef struct taskConfig {
     const configSTACK_DEPTH_TYPE uxStackDepth;
     void *pvParameters;
     UBaseType_t uxPriority;
-    TaskHandle_t *pxCreatedTask;
 } taskConfig;
 
 typedef enum eNeuralNetwork { 
@@ -30,12 +29,13 @@ typedef enum eNeuralNetwork {
 typedef struct systemConfig { 
     eNeuralNetwork network; 
     uint8_t streamEnable; 
+    framesize_t res[2]; //1st is old and 2nd is new send from frontend
 } systemConfig;
 
 
 
 typedef enum eFiniteState { 
-    eFSMCameraGet, 
+    eFSMImageGet, 
     eFSMImageSend
 } eFiniteState; 
 

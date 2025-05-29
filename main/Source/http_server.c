@@ -90,6 +90,7 @@ static esp_err_t stream_handler(httpd_req_t *req) {
 
   char *part_buf[128];
 
+  FSM = eFSMImageGet;
 
 
   httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
@@ -101,16 +102,19 @@ static esp_err_t stream_handler(httpd_req_t *req) {
   while (true) {
 
     if (FSM == eFSMImageSend){
-        httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
-        size_t hlen = snprintf((char *)part_buf, 128, _STREAM_PART, _jpg_buf_len, _timestamp.tv_sec, _timestamp.tv_usec);
-        httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
-        httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len);
-        FSM = eFSMCameraGet;
+        if (_jpg_buf != NULL){
+            httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+            size_t hlen = snprintf((char *)part_buf, 128, _STREAM_PART, _jpg_buf_len, _timestamp.tv_sec, _timestamp.tv_usec);
+            httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
+            if(httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len) != ESP_OK){
+                FSM = eFSMImageGet;
+                return ESP_OK;
+            }
+            FSM = eFSMImageGet;
+        }
     }
 
     vTaskDelay(10/portTICK_PERIOD_MS);
-
-
   }
   return ESP_OK;
 }
@@ -133,7 +137,7 @@ static esp_err_t config_handler(httpd_req_t *req) {
 
     httpd_req_get_url_query_str(req, buf, 100); 
     ConfigParser(buf);
-    printf("Got bufer: %s\r\n", buf);
+    httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
 
@@ -239,6 +243,9 @@ uint8_t ConfigParser(char *buf){
 
     if (!strcmp(varName, "NeuralNetwork")){ 
         mainConfig.network = varValue;
+    } else if (!strcmp(varName, "Resolution")){ 
+        mainConfig.res[0] = mainConfig.res[1];
+        mainConfig.res[1] = varValue;
     }
 
     return 1;
@@ -248,7 +255,9 @@ char *JsonBuilderConfig(){
     char *strPtr = calloc(300 , sizeof(char)); //300baitu json 
     uint16_t length = 0; 
     length = sprintf(strPtr, "{"); 
-    length += sprintf(strPtr+length, "\"%s\":%u", "NeuralNetwork", (uint8_t)(mainConfig.network));
+    length += sprintf(strPtr+length, "\"%s\":%u,", "NeuralNetwork", (uint8_t)(mainConfig.network));
+    length += sprintf(strPtr+length, "\"%s\":%u", "Resolution", (uint8_t)(mainConfig.res[1]));
+
     sprintf(strPtr+length, "}");
     ESP_LOGI(TAG, "%s", strPtr);
     return strPtr;

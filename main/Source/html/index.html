@@ -6,11 +6,12 @@
     <title>Document</title>
 </head>
 <body>
-    <div id="stream-container" class="image-container" >
+    <h1 style="text-align: center;"> ESP Face Detection </h1>
+    <div id="stream-container" class="image-container" style="height: 100px;text-align: center;">
         <img id="stream" crossorigin="" style="visibility: hidden;">
     </div>
-    <div>
-        <button id = "Toggle stream">
+    <div style="text-align: center;">
+        <button class = button id = "Toggle stream">
             Start Stream
         </button>
         <select class = "inputSelect" name="NeuralNetwork" id="selectNN">
@@ -18,6 +19,12 @@
             <option value="2">ESP WOW</option>
             <option value="3">Perceptron</option>
             <option value="4">Multi</option>
+        </select>
+        <select class = "inputSelect" name="Resolution" id="selectRES">
+            <option value="5">240x240</option>
+            <option value="6">320x240</option>
+            <option value="8">400x296</option>
+            <option value="10">640x480</option>
         </select>
         
     </div>
@@ -31,6 +38,7 @@
     color: #EFEFEF;
     font-size: 16px;
     }
+
 </style>
 
 
@@ -47,19 +55,27 @@
 
         el = document.getElementById("selectNN"); 
         el.addEventListener("change", UpdateConfig);
+
+        el = document.getElementById("selectRES"); 
+        el.addEventListener("change", UpdateConfig);
     
         function myFunction() {
             const view = document.getElementById('stream')
             el = document.getElementById("Toggle stream"); 
+            streamwindow = document.getElementById("stream-container");
             if (toggle == 0) { 
                 toggle = 1;
-                el.textContent = "Stop stream"   
+                el.textContent = "Stop stream"  
+                streamwindow.style.height = "auto"
+
+
                 view.src = `${streamUrl}/stream`
                 view.style.visibility = "visible"
             } else { 
                 toggle = 0;
                 el.textContent = "Start stream" 
                 window.stop();
+                streamwindow.style.height = "100px"
                 view.style.visibility = "hidden"
             }
         }
@@ -88,6 +104,9 @@
         .then(function (state) {
             value = state.NeuralNetwork; 
             el = document.getElementsByName("NeuralNetwork")[0]; 
+            el.value = value;
+            value = state.Resolution; 
+            el = document.getElementsByName("Resolution")[0]; 
             el.value = value;
         })
     })
