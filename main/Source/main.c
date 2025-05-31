@@ -13,16 +13,17 @@
 
 #include "../Include/main.h"
 
-systemConfig mainConfig = { 
-    eTensorFlow, 
-    0,
-    {FRAMESIZE_240X240, FRAMESIZE_240X240}
-};
+systemConfig mainConfig;
+eFiniteState FSM = eFSMImageGet;
 
 
-void app_main(void)
-{
-    printf("Hello world!\n");
+void app_main(void) {
+    mainConfig.faceDetectEnable = 0;
+    mainConfig.streamEnable = 0;
+    mainConfig.network = eTensorFlow;
+    mainConfig.res[0] = FRAMESIZE_240X240;
+    mainConfig.res[1] = FRAMESIZE_240X240;
+
     CameraInit();
     WifiInit();
     HTTPServerStart();

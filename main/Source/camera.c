@@ -13,12 +13,12 @@ taskConfig cameraTask = {
     9000,
     NULL,
     tskIDLE_PRIORITY,
-}; 
+};
 
 size_t _jpg_buf_len = 0;
-uint8_t *_jpg_buf = NULL;
+uint8_t* _jpg_buf = NULL;
 struct timeval _timestamp;
-eFiniteState FSM = eFSMImageSend;
+
 
 
 #define PWDN_GPIO_NUM     -1
@@ -43,7 +43,7 @@ eFiniteState FSM = eFSMImageSend;
 
 
 
-void CameraInit(){ 
+void CameraInit() {
 
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
@@ -74,15 +74,15 @@ void CameraInit(){
     config.fb_count = 1;
 
     ESP_ERROR_CHECK(esp_camera_init(&config));
-    
-    sensor_t *s = esp_camera_sensor_get();
-    
+
+    sensor_t* s = esp_camera_sensor_get();
+
     // // drop down frame size for higher initial frame rate
     if (config.pixel_format == PIXFORMAT_JPEG) {
         s->set_framesize(s, mainConfig.res[1]);
     }
 
-    
+
 
 
     xTaskCreate(cameraTask.pvTaskCode,
@@ -91,7 +91,7 @@ void CameraInit(){
                 cameraTask.pvParameters,
                 cameraTask.uxPriority,
                 NULL
-                );
+    );
 
 }
 
@@ -99,18 +99,20 @@ void CameraInit(){
 
 
 
-void CameraTask(){ 
 
-    camera_fb_t *fb = NULL;
-    sensor_t *s = esp_camera_sensor_get();
-    vTaskDelay(5000/portTICK_PERIOD_MS);
 
-    while(1) { 
-        
-        if (FSM == eFSMImageGet){ 
-            
+void CameraTask() {
 
-            if (mainConfig.res[1] != mainConfig.res[0]){ 
+    camera_fb_t* fb = NULL;
+    sensor_t* s = esp_camera_sensor_get();
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+
+    while (1) {
+
+        if (FSM == eFSMImageGet) {
+
+
+            if (mainConfig.res[1] != mainConfig.res[0]) {
                 mainConfig.res[0] = mainConfig.res[1];
                 s->set_framesize(s, mainConfig.res[1]);
             }
@@ -120,14 +122,14 @@ void CameraTask(){
                 esp_camera_fb_return(fb);
                 fb = NULL;
                 _jpg_buf = NULL;
-            } 
+            }
 
 
             fb = esp_camera_fb_get();
             if (!fb) {
-                continue; 
-            } 
-    
+                continue;
+            }
+
             _timestamp.tv_sec = fb->timestamp.tv_sec;
             _timestamp.tv_usec = fb->timestamp.tv_usec;
             _jpg_buf_len = fb->len;
@@ -142,13 +144,13 @@ void CameraTask(){
             // } else {
             FSM = eFSMImageSend;
         }
-    
-        vTaskDelay(10/portTICK_PERIOD_MS);
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
 
     }
 
-        
-    
+
+
 
 
 

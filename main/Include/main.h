@@ -6,43 +6,44 @@
 
 
 void CameraInit();
-void WifiInit(); 
-void HTTPServerStart();  
+void WifiInit();
+void HTTPServerStart();
 
 
-typedef struct taskConfig { 
+typedef struct taskConfig {
     TaskFunction_t pvTaskCode;
-    const char * const pcName;
+    const char* const pcName;
     const configSTACK_DEPTH_TYPE uxStackDepth;
-    void *pvParameters;
+    void* pvParameters;
     UBaseType_t uxPriority;
 } taskConfig;
 
-typedef enum eNeuralNetwork { 
-    eTensorFlow = 1, 
-    eEspWOW, 
-    ePerceptron, 
+typedef enum eNeuralNetwork {
+    eTensorFlow = 1,
+    eEspWOW,
+    ePerceptron,
     eMulti
-} eNeuralNetwork; 
+} eNeuralNetwork;
 
 
-typedef struct systemConfig { 
-    eNeuralNetwork network; 
-    uint8_t streamEnable; 
+typedef struct systemConfig {
+    eNeuralNetwork network;
+    uint8_t streamEnable;
+    uint8_t faceDetectEnable;
     framesize_t res[2]; //1st is old and 2nd is new send from frontend
 } systemConfig;
 
 
 
-typedef enum eFiniteState { 
-    eFSMImageGet, 
+typedef enum eFiniteState {
+    eFSMImageGet,
     eFSMImageSend
-} eFiniteState; 
+} eFiniteState;
 
 
-extern eFiniteState FSM; 
+extern eFiniteState FSM;
 extern size_t _jpg_buf_len;
-extern uint8_t *_jpg_buf;
+extern uint8_t* _jpg_buf;
 extern struct timeval _timestamp;
 extern systemConfig mainConfig;
 

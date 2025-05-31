@@ -30,28 +30,29 @@ GITHUB NUORODA: https://github.com/espressif/esp-idf/blob/v5.4.1/examples/protoc
 #include "esp_camera.h"
 
 
-#include "html/pages.h"
+#include "html/web_files.h"
 #include "../Include/main.h"
 
 
 /*Stream aptarnavimo headeriai */
 
 #define PART_BOUNDARY "123456789000000000000987654321"
-static const char *_STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
-static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
-static const char *_STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\nX-Timestamp: %d.%06d\r\n\r\n";
+static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
+static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
+static const char* _STREAM_PART = "Content-Type: image/jpeg\r\nContent-Length: %u\r\nX-Timestamp: %d.%06d\r\n\r\n";
 
 httpd_handle_t server = NULL;
 httpd_handle_t stream = NULL;
 
 
-static const char *TAG = "example";
+static const char* TAG = "Server";
+static const char* TAGCONFIG = "ConfigParams";
 
 
-uint8_t ConfigParser(char *buf);
-char *JsonBuilderConfig();
+uint8_t ConfigParser(char* buf);
+char* JsonBuilderConfig();
 
-esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err){
+esp_err_t http_404_error_handler(httpd_req_t* req, httpd_err_code_t err) {
     if (strcmp("/hello", req->uri) == 0) {
         httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "/hello URI is not available");
         /* Return ESP_OK to keep underlying socket open */
@@ -69,74 +70,99 @@ esp_err_t http_404_error_handler(httpd_req_t *req, httpd_err_code_t err){
 
 /*Index handler. Pagrindinio puslapio handleris. Užkraunamas index.html failas*/
 
-static esp_err_t index_handler(httpd_req_t *req){
+static esp_err_t index_handler(httpd_req_t* req) {
     httpd_resp_set_type(req, "text/html");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
-    return httpd_resp_send(req, (const char *)index_html, index_html_len);
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
+    httpd_resp_send(req, (const char*)index_html, index_html_len);
+
+    return ESP_OK;
 };
 
 static const httpd_uri_t main_uri = {
     .uri = "/",
-    .method    = HTTP_GET,
-    .handler   = index_handler,
-    .user_ctx  = NULL,
+    .method = HTTP_GET,
+    .handler = index_handler,
+    .user_ctx = NULL,
+};
+
+
+
+static esp_err_t script_handler(httpd_req_t* req) {
+    char buf[100] = { 0 };
+    httpd_req_get_url_query_str(req, buf, 100);
+    httpd_resp_set_type(req, "application/javascript");
+    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+    if (!strcmp(buf, "script.js"))
+        return httpd_resp_send(req, (const char*)script_js, script_js_len);
+    else if (!strcmp(buf, "MediaPipeAlgorithm.js"))
+        return httpd_resp_send(req, (const char*)mediapipe_js, mediapipe_js_len);
+    else return httpd_resp_send(req, NULL, 0);
+};
+
+static const httpd_uri_t script_uri = {
+    .uri = "/script",
+    .method = HTTP_GET,
+    .handler = script_handler,
+    .user_ctx = NULL,
 };
 
 
 /*Stream Handler. Paspaudus start stream atsiranda langas su vaizdu. Stream handleris apdoroja šitą langą*/
 
-static esp_err_t stream_handler(httpd_req_t *req) {
+static esp_err_t stream_handler(httpd_req_t* req) {
 
 
-  char *part_buf[128];
+    char* part_buf[128];
 
-  FSM = eFSMImageGet;
-
-
-  httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
-  httpd_resp_set_hdr(req, "X-Framerate", "60");
-
+    ESP_LOGI(TAG, "Stream handler. FSM = %d Enable :%d", FSM, mainConfig.streamEnable);
+    ESP_LOGI(TAG, "Stream handler. *jpg_buf :%x", (uint16_t)(_jpg_buf));
+    httpd_resp_set_type(req, _STREAM_CONTENT_TYPE);
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "X-Framerate", "60");
 
 
-  while (true) {
 
-    if (FSM == eFSMImageSend){
-        if (_jpg_buf != NULL){
-            httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
-            size_t hlen = snprintf((char *)part_buf, 128, _STREAM_PART, _jpg_buf_len, _timestamp.tv_sec, _timestamp.tv_usec);
-            httpd_resp_send_chunk(req, (const char *)part_buf, hlen);
-            if(httpd_resp_send_chunk(req, (const char *)_jpg_buf, _jpg_buf_len) != ESP_OK){
+    while (true) {
+
+        if (mainConfig.streamEnable) {
+
+            if ((FSM == eFSMImageSend) && (_jpg_buf != NULL)) {
+                httpd_resp_send_chunk(req, _STREAM_BOUNDARY, strlen(_STREAM_BOUNDARY));
+                size_t hlen = snprintf((char*)part_buf, 128, _STREAM_PART, _jpg_buf_len, _timestamp.tv_sec, _timestamp.tv_usec);
+                httpd_resp_send_chunk(req, (const char*)part_buf, hlen);
+                httpd_resp_send_chunk(req, (const char*)_jpg_buf, _jpg_buf_len);
                 FSM = eFSMImageGet;
-                return ESP_OK;
+            } else {
+                FSM = eFSMImageGet;
             }
-            FSM = eFSMImageGet;
-        }
+        } else break;
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 
-    vTaskDelay(10/portTICK_PERIOD_MS);
-  }
-  return ESP_OK;
+    httpd_resp_send_chunk(req, NULL, 0);
+    return ESP_OK;
 }
 
 
 static const httpd_uri_t stream_uri = {
     .uri = "/stream",
-    .method    = HTTP_GET,
-    .handler   = stream_handler,
-    .user_ctx  = NULL,
+    .method = HTTP_GET,
+    .handler = stream_handler,
+    .user_ctx = NULL,
 };
 
 
 /*Config handler parameters from web to ESP */
 
-static esp_err_t config_handler(httpd_req_t *req) {
-    char buf [100];
-    char variable[32];
-    char value[32];
+static esp_err_t config_handler(httpd_req_t* req) {
+    char buf[100];
 
-    httpd_req_get_url_query_str(req, buf, 100); 
+
+    httpd_req_get_url_query_str(req, buf, 100);
     ConfigParser(buf);
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     httpd_resp_send(req, NULL, 0);
     return ESP_OK;
 }
@@ -146,17 +172,17 @@ httpd_uri_t cmd_uri = {
     .method = HTTP_GET,
     .handler = config_handler,
     .user_ctx = NULL
-}; 
+};
 
 
-static esp_err_t status_handler(httpd_req_t *req) {
-    
-    char* json = JsonBuilderConfig(); 
-    uint16_t jsonlength = 0; 
-    while (json[jsonlength] != 0){ 
+static esp_err_t status_handler(httpd_req_t* req) {
+
+    char* json = JsonBuilderConfig();
+    uint16_t jsonlength = 0;
+    while (json[jsonlength] != 0) {
         jsonlength++;
     }
-
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, json, jsonlength);
 
@@ -170,7 +196,8 @@ httpd_uri_t status_uri = {
     .method = HTTP_GET,
     .handler = status_handler,
     .user_ctx = NULL
-}; 
+};
+
 
 
 /*Initialise Web Server*/
@@ -187,7 +214,7 @@ void HTTPServerStart() {
         httpd_register_uri_handler(server, &main_uri);
         httpd_register_uri_handler(server, &cmd_uri);
         httpd_register_uri_handler(server, &status_uri);
-   
+        httpd_register_uri_handler(server, &script_uri);
     }
 
     config.server_port += 1;
@@ -196,69 +223,73 @@ void HTTPServerStart() {
     if (httpd_start(&stream, &config) == ESP_OK) {
         ESP_LOGI(TAG, "Registering Stream URI handlers");
         httpd_register_uri_handler(stream, &stream_uri);
-    
+
     } else {
         ESP_ERROR_CHECK(httpd_start(&stream, &config));
     }
 }
 
-void HTTPServerStop(){ 
+void HTTPServerStop() {
     httpd_stop(server);
 }
 
 
-uint8_t ConfigParser(char *buf){ 
-    uint8_t count = 0; 
-    uint8_t countSafety = 0; //count for safety 
-    uint8_t varNameCount = 0; 
-    
-    char varName[20] = {0}; 
-    uint8_t varValue; 
+uint8_t ConfigParser(char* buf) {
+    uint8_t count = 0;
+    uint8_t countSafety = 0; //count for safety
+    uint8_t varNameCount = 0;
 
-    while(buf[count] != '='){ 
-        count++; 
-        countSafety++; 
-        if (countSafety == 100) return 0; //Cant find = after variable 
+    char varName[20] = { 0 };
+    uint8_t varValue;
+
+    while (buf[count] != '=') {
+        count++;
+        countSafety++;
+        if (countSafety == 100) return 0; //Cant find = after variable
     }
     count++;
-    countSafety = 0;  
-    
-    while(buf[count] != ';'){ 
-        varName[varNameCount] = buf[count]; 
-        count++; 
-        varNameCount++; 
-        countSafety++; 
-        if (varNameCount == 20 || countSafety == 100) return 0; //Too long name or something bad 
+    countSafety = 0;
+
+    while (buf[count] != ';') {
+        varName[varNameCount] = buf[count];
+        count++;
+        varNameCount++;
+        countSafety++;
+        if (varNameCount == 20 || countSafety == 100) return 0; //Too long name or something bad
     }
 
-    countSafety = 0; 
-    while(buf[count] != '='){ 
-        count++; 
-        countSafety++; 
+    countSafety = 0;
+    while (buf[count] != '=') {
+        count++;
+        countSafety++;
         if (countSafety == 100) return 0; //Cant find = after value
     }
-    count++; 
+    count++;
 
-    varValue = atoi((buf + count)); 
+    varValue = atoi((buf + count));
 
-    if (!strcmp(varName, "NeuralNetwork")){ 
+    ESP_LOGI(TAGCONFIG, "%s : %d", varName, varValue);
+    if (!strcmp(varName, "NeuralNetwork")) {
         mainConfig.network = varValue;
-    } else if (!strcmp(varName, "Resolution")){ 
+    } else if (!strcmp(varName, "Resolution")) {
         mainConfig.res[0] = mainConfig.res[1];
         mainConfig.res[1] = varValue;
+    } else if (!strcmp(varName, "EnableStream")) {
+        mainConfig.streamEnable = varValue;
+    } else if (!strcmp(varName, "FaceDetect")) {
+        mainConfig.faceDetectEnable = varValue;
     }
 
     return 1;
 }
 
-char *JsonBuilderConfig(){ 
-    char *strPtr = calloc(300 , sizeof(char)); //300baitu json 
-    uint16_t length = 0; 
-    length = sprintf(strPtr, "{"); 
-    length += sprintf(strPtr+length, "\"%s\":%u,", "NeuralNetwork", (uint8_t)(mainConfig.network));
-    length += sprintf(strPtr+length, "\"%s\":%u", "Resolution", (uint8_t)(mainConfig.res[1]));
+char* JsonBuilderConfig() {
+    char* strPtr = calloc(300, sizeof(char)); //300baitu json
+    uint16_t length = 0;
+    length = sprintf(strPtr, "{");
+    length += sprintf(strPtr + length, "\"%s\":%u,", "NeuralNetwork", (uint8_t)(mainConfig.network));
+    length += sprintf(strPtr + length, "\"%s\":%u", "Resolution", (uint8_t)(mainConfig.res[1]));
 
-    sprintf(strPtr+length, "}");
-    ESP_LOGI(TAG, "%s", strPtr);
+    sprintf(strPtr + length, "}");
     return strPtr;
 }

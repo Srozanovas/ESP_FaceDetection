@@ -3,19 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>ESP-FaceDetect</title>
 </head>
 <body>
     <h1 style="text-align: center;"> ESP Face Detection </h1>
     <div id="stream-container" class="image-container" style="height: 100px;text-align: center;">
-        <img id="stream" crossorigin="" style="visibility: hidden;">
+        <canvas id="stream" style="visibility: hidden;"></canvas>
     </div>
     <div style="text-align: center;">
-        <button class = button id = "Toggle stream">
+        <button class = button id = "Toggle stream" name="EnableStream">
             Start Stream
         </button>
+        <button class = button id = "Toggle face detect" name = "FaceDetect">
+            Start Face Detect
+        </button>
         <select class = "inputSelect" name="NeuralNetwork" id="selectNN">
-            <option value="1">TensorFlow</option>
+            <option value="1">Mediapipe (on web)</option>
             <option value="2">ESP WOW</option>
             <option value="3">Perceptron</option>
             <option value="4">Multi</option>
@@ -26,7 +29,7 @@
             <option value="8">400x296</option>
             <option value="10">640x480</option>
         </select>
-        
+
     </div>
     </figure>
 </body>
@@ -42,78 +45,20 @@
 </style>
 
 
-<script>
-    toggle = 0; 
-
-    document.addEventListener('DOMContentLoaded', function (event) {
-        var baseHost = document.location.origin
-        var streamUrl = baseHost + ':81'
+<script >
 
 
-        el = document.getElementById("Toggle stream");
-        el.addEventListener("click", myFunction);
-
-        el = document.getElementById("selectNN"); 
-        el.addEventListener("change", UpdateConfig);
-
-        el = document.getElementById("selectRES"); 
-        el.addEventListener("change", UpdateConfig);
-    
-        function myFunction() {
-            const view = document.getElementById('stream')
-            el = document.getElementById("Toggle stream"); 
-            streamwindow = document.getElementById("stream-container");
-            if (toggle == 0) { 
-                toggle = 1;
-                el.textContent = "Stop stream"  
-                streamwindow.style.height = "auto"
-
-
-                view.src = `${streamUrl}/stream`
-                view.style.visibility = "visible"
-            } else { 
-                toggle = 0;
-                el.textContent = "Start stream" 
-                window.stop();
-                streamwindow.style.height = "100px"
-                view.style.visibility = "hidden"
-            }
-        }
-    
-
-
-        function UpdateConfig(){ 
-            s = document.location.origin+"/control?var="
-            el = this; 
-            
-
-            if (el.className === "inputSelect"){ 
-                paramValue = el.value; 
-                paramName = el.name;
-            }
-
-
-            s = s + paramName + ";value=" + paramValue; 
-            fetch(s);
-        }
-        s = baseHost+"/status";
-        fetch(s)
-        .then(function (response) {
-            return response.json()
-        })
-        .then(function (state) {
-            value = state.NeuralNetwork; 
-            el = document.getElementsByName("NeuralNetwork")[0]; 
-            el.value = value;
-            value = state.Resolution; 
-            el = document.getElementsByName("Resolution")[0]; 
-            el.value = value;
-        })
-    })
 
 </script>
+    <!-- Require the peer dependencies of face-detection. -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
 
+    <!-- You must explicitly require a TF.js backend if you're not using the TF.js union bundle. -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
 
-
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-detection"></script>
+<script src = "/script?script.js"></script>
+<script src = "/script?MediaPipeAlgorithm.js"></script>
 
 </html>
